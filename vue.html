@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>VUE整合高德地图展示DEMO</title>
+		<!-- import CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+		<style>
+			html,
+			body,
+			#app,
+			#container {
+				height: 100%;
+				width: 100%;
+				margin: 0;
+			}
+
+			.amap-logo {
+				display: none;
+				opacity: 0 !important;
+			}
+
+			.amap-copyright {
+				opacity: 0;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="app">
+			<!-- 引入容器框 -->
+			<div id="container" tabindex="0"></div>
+
+			<!-- 查询框 -->
+			<div id="search" style="position: absolute; top:10px;left:20px;z-index: 10;">
+				<el-input id="tipinput" v-model="input" placeholder="请输入内容" clearable></el-input>
+			</div>
+
+			<!-- 功能框 -->
+			<div id="other" style="position:absolute;bottom:20px;right:20px; z-index : 11">
+				<el-card class="box-card">
+					<el-row>
+						<el-button type="primary" @click="addArea" size="small">新增区域</el-button>
+						<el-button type="success" @click="editArea" size="small">编辑区域</el-button>
+						<el-button type="info" @click="closeArea" size="small">结束编辑</el-button>
+					</el-row>
+				</el-card>
+
+			</div>
+
+
+
+			<!-- 信息弹出框 -->
+			<el-dialog title="信息" :visible.sync="dialogVisible" width="60%">
+
+				<el-descriptions title="小区信息展示" border>
+					<el-descriptions-item label="小区名称">XXXX小区</el-descriptions-item>
+					<el-descriptions-item label="人口数量">1542</el-descriptions-item>
+					<el-descriptions-item label="所属网格">XXX网格</el-descriptions-item>
+					<el-descriptions-item label="网格管理员">葛彦玲</el-descriptions-item>
+					<el-descriptions-item label="核酸采集点">3</el-descriptions-item>
+					<el-descriptions-item label="地址">佛山市高明区美延街20号</el-descriptions-item>
+				</el-descriptions>
+
+			</el-dialog>
+		</div>
+
+		<!-- vue -->
+		<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+		<!-- element ui -->
+		<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+		<!-- 高德地图 -->
+		<script src="https://webapi.amap.com/loader.js"></script>
+
+		<script>
+			// 设置安全密钥
+			window._AMapSecurityConfig = {
+				securityJsCode: '430e0931de33cf59dd9167ff9a3718a7',
+			}
+
+			var app = new Vue({
+				el: '#app',
+				data() {
+					return {
+						// 模拟几个经纬度地址（点）
+						targetArea: [{
+								lng: 112.878846,
+								lat: 22.894895
+							},
+							{
+								lng: 112.876569,
+								lat: 22.89468
+							},
+							{
+								lng: 112.876099,
+								lat: 22.894087
+							},
+							{
+								lng: 112.875107,
+								lat: 22.893534
+							},
+							{
+								lng: 112.875563,
+								lat: 22.892708
+							},
+							{
+								lng: 112.877199,
+								lat: 22.892995
+							},
+							{
+								lng: 112.873355,
+								lat: 22.89292
+							},
+						],
+						// 模拟一个面的经纬度地址
+						targetPaths: [
+							[112.876552, 22.893323],
+							[112.877511, 22.893727],
+							[112.878085, 22.892615],
+							[112.877247, 22.892188]
+						],
+						visible: false,
+						message: 'Hello Vue!',
+						map: null, // 地图对象
+						aMap: null,
+						marker: null, // 覆盖物对象
+						input: '', // 搜索内容框
+						dialogVisible: false, // 信息弹出框
+						polyEditor: null, // 多边形编辑器对象
+					}
+				},
+				mounted() {
+					this.initMap()
+				},
+				methods: {
+					// 初始化高德地图对象
+					initMap() {
+						AMapLoader.load({ //首次调用 load
+							key: '0bf14734796456a9ff6d08797eaa7f5d', //首次load key为必填
+							version: '2.0',
+							// 注意：加载插件配置的时候，字母大小写千万不能错了
+							plugins: ['AMap.Scale', 'AMap.ToolBar', 'AMap.MapType', 'AMap.AutoComplete',
+								'AMap.PlaceSearch'
+							]
+						}).then((AMap) => {
+							this.map = new AMap.Map('container', {
+								viewMode: "2D", //  是否为3D地图模式
+								zoom: 15, // 初始化地图级别
+								center: [112.876099, 22.894087], //佛山 
+								resizeEnable: true
+							});
+							// 放大缩小
+							this.map.addControl(new AMap.Scale())
+							this.map.addControl(new AMap.ToolBar())
+							this.map.addControl(new AMap.MapType({
+								pName: "MapType",
+								defaultType: 0, //0代表默认，1代表卫星
+								showTraffic: false, // 路网
+								showRoad: true, // 路况
+							}))
+
+							// 初始化搜索内容
+							this.initSearch();
+
+							// 初始化覆盖物内容
+							this.initMarkers()
+
+							// 初始化面覆盖物内容
+							this.initAreaMarkers();
+
+							// 监听map获取当前拾取器的经纬度
+							this.map.on('click', (e) => {
+								console.log("当前经纬度为：" + e.lnglat.lng + ',' + e.lnglat.lat)
+							})
+
+						}).catch((e) => {
+							console.error(e);
+						});
+					},
+					editArea(){
+						this.polyEditor.open();
+					},
+					// 结束多边形编辑
+					closeArea(){
+						this.polyEditor.close()
+					},
+					// 新增多边形区域
+					addArea() {
+						this.polyEditor.close();
+						this.polyEditor.setTarget();
+						this.polyEditor.open();
+					},
+					// 初始化面覆盖物内容
+					initAreaMarkers() {
+						AMapLoader.load({
+							plugins: ['AMap.PolygonEditor']
+						}).then((AMap) => {
+							let polygon = new AMap.Polygon({
+								path: this.targetPaths
+							})
+							// 循环创建多边形对象后，全部加入到map对象中去
+							this.map.add([polygon]);
+							// 缩放地图到合适的视野级别
+							this.map.setFitView();
+
+							// 多边形编辑对象
+							this.polyEditor = new AMap.PolygonEditor(this.map);
+							this.polyEditor.addAdsorbPolygons([polygon]);
+
+							// 双击后激活编辑
+							polygon.on('dblclick', () => {
+								this.polyEditor.setTarget(polygon);
+								this.polyEditor.open();
+							})
+
+							// 单机后结束
+							// polygon.on('click',() => {
+							// 	// 激活弹窗
+							// 	this.dialogVisible = true
+							// 	polyEditor.close();
+							// })
+						})
+					},
+					// 初始化覆盖物内容
+					initMarkers() {
+						// 待加入的所有marker对象数组
+						let markers = [];
+						for (let i = 0; i < this.targetArea.length; i++) {
+							let item = this.targetArea[i]
+							// 创建点实例
+							let marker = new AMap.Marker({
+								position: new AMap.LngLat(item.lng, item.lat),
+								icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b' + (i + 1) + '.png',
+								extData: {
+									id: i + 1
+								}
+							});
+
+							marker.on('click', (e) => {
+								this.dialogVisible = true;
+							})
+							markers.push(marker);
+						}
+
+						// 将描点添加到地图
+						this.map.add(markers);
+					},
+					// 初始化查询级自动完成组件
+					initSearch() {
+						AMapLoader.load({ //可多次调用load
+							plugins: ['AMap.AutoComplete', 'AMap.PlaceSearch']
+						}).then((AMap) => {
+							//输入提示
+							let autoOptions = {
+								input: "tipinput"
+							};
+							let auto = new AMap.Autocomplete(autoOptions);
+							let placeSearch = new AMap.PlaceSearch({
+								map: this.map
+							}); //构造地点查询类
+
+							// 注意Event的首字母必须大写
+							AMap.Event.addListener(auto, "select", (event) => {
+								placeSearch.setCity(event.poi.adcode);
+								placeSearch.search(event.poi.name); //关键字查询查询
+							}); //注册监听，当选中某条记录时会触发
+						}).catch((e) => {
+							console.error(e);
+						});
+					}
+				},
+			})
+		</script>
+	</body>
+</html>

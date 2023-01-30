@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+	</head>
+	<body>
+		
+		<h1>测试js中的this</h1>
+		
+		<script>
+			
+			// function foo(){
+			// 	var num = 2;
+			// 	debugger
+			// 	console.log(this.num)
+			// }
+			
+			// var num = 0;
+			
+			// foo()
+			
+			// 要需要补充一点，不管你的对象嵌套多深，this只会绑定为直接引用该函数的地址属性的对象，看代码
+			
+			function foo(){
+			    console.log(this.name)
+			}
+			var shiny={
+			    name:'shiny',
+			    foo:foo
+			}
+			var red={
+			    name:'red',
+			    obj:shiny
+			    
+			}
+			red.obj.foo()//shiny
+			
+			
+			
+		</script>
+		
+		
+	</body>
+</html>

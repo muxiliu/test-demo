@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+	</head>
+	<body>
+		
+		<h1>事件监听测试</h1>
+		
+		<script>
+			
+			document.addEventListener('abc',(e)=>{
+				console.log(e.obj.toString())
+			})
+			
+			// 创建一个事件对象
+			const event = new Event('abc')
+			event.obj = {
+				'name' : '张三',
+				'age' : 20,
+				toString : function(){
+					return this.name + this.age
+				}
+			}
+			// 向document抛发创建的event对象
+			document.dispatchEvent(event);
+			
+			
+		</script>
+		
+	</body>
+</html>
